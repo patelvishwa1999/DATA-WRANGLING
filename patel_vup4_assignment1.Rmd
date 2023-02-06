@@ -1,0 +1,76 @@
+---
+title: "DATAWRANGLING_1"
+author: "Vishwa Patel (vup4)"
+date: "2023-01-30"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r }
+install.packages("babynames", repos = "http://cran.us.r-project.org")
+
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(babynames)
+head(babynames)
+```
+```{r}
+babyname_taylor = filter(babynames, name=="Taylor") %>%
+group_by(year,sex) %>% summarise(Total=sum(n))
+babyname_taylor
+head(babyname_taylor)
+```
+```{r}
+#1. Plot the number of male and female babies named Taylor by year
+ggplot(babyname_taylor, aes(x =year , y = Total, color = sex)) +
+geom_line()
+```
+
+```{r}
+#2 a) Is a 23-year old named Quinn more likely to be a boy or a girl?
+babyname_Quinn_23=filter(babynames, name=="Quinn" & year==(2018-23))%>% select(sex,n)
+ggplot(babyname_Quinn_23, aes(sex,n)) +
+geom_point()
+```
+#23-year old named Quinn is more likely to be MALE(boy)
+
+```{r}
+#2 b) Is a 6 year old named Quinn more likely to be a boy or a girl?
+babyname_Quinn_6=filter(babynames, name=="Quinn" & year==(2018-6))%>% select(sex,n)
+ggplot(babyname_Quinn_6, aes(sex,n)) +
+geom_point()
+```
+# 6 year old named Quinn is more likely to be FEMALE(girl)
+```{r}
+#2 c) What is your best guess as to how old a woman named Susan is?
+babyname_Susan=filter(babynames, name=="Susan" & sex=="F")%>%
+summarise(age=(2018-year),n)
+ggplot(babyname_Susan, aes(x =age , y = n)) +
+geom_line()
+```
+#best guess for woman named susan's age is 62-70 yo
+
+```{r}
+#2 d) Find the five most popular female names in the year 2017.
+baby_female=filter(babynames, year==2018 & sex=="F")%>% select(name,n) %>% arrange(desc(n))
+baby_top5 = baby_female[1:5,]
+baby_top5
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
