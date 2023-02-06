@@ -1,0 +1,124 @@
+---
+title: "DATA WRANGLING AND HUSBANDARY 2"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+library(tidyverse)
+library(plotly)
+```
+
+*1 Downloaded the dataset on restaurant inspection in csv format from 
+    https://data.cityofnewyork.us/Health/DOHMH-New-York-City-Restaurant-Inspection-Results/43nn-pn8j 
+Named the file NYRestaurantInspection2023.csv and read that CSV file.*
+```{r}
+nyc_rest_inspec <- read.csv(file ='/Users/vishwapatel/Downloads/NYRestaurantInspection2023.csv')
+```
+
+*(1a) Formed a new data frame restricted to restaurants in Queens with cuisine equal to "Pizza"*
+```{r}
+#Restaurants in Queens with cuisine equal to "Pizza"
+nyc_queens_pizza <- filter(nyc_rest_inspec, BORO == "Queens" & CUISINE.DESCRIPTION =="Pizza")
+```
+*(1b) What are the 5 most frequently inspected restaurants (use the variable "DBA") in the data frame? *
+```{r}
+# 5 most Frequently Inspected Pizza Restaurants in Queens
+nyc_queens_pizza_frequent <- nyc_queens_pizza %>% group_by(DBA) %>% summarise(count = n()) %>% arrange(desc(count)) %>% 
+  head(5)
+nyc_queens_pizza_frequent
+```
+*5 most Frequently Inspected Pizza Restaurants in Queens are as above*
+
+```{r}
+# 5 most Frequently Inspected Restaurants
+nyc_frequent <- nyc_rest_inspec %>% group_by(DBA) %>% summarise(count = n()) %>% arrange(desc(count)) %>% 
+  head(5)
+nyc_frequent
+```
+*5 most Frequently Inspected Restaurants are as above*
+
+*(1c) On what dates has pizza parlor "SUSANO'S PIZZERIA & RESTAURANT" been inspected? *
+```{r}
+#Dates on which pizza parlor "SUSANO'S PIZZERIA & RESTAURANT" HAS been inspected
+inspec_susano <- nyc_rest_inspec %>% filter(DBA == "SUSANO'S PIZZERIA & RESTAURANT")
+inspec_susano$INSPECTION.DATE
+
+```
+
+```{r}
+#2
+gapminder_2007_gini <- read_tsv('/Users/vishwapatel/Downloads/gapminder_2007_gini.tsv')
+```
+
+```{r}
+#2A
+b_plot <- ggplot(data = gapminder_2007_gini) +
+          geom_boxplot(mapping = aes(continent, gini, colour = continent)) +
+          ggtitle("BOX PLOT 
+Comparing the distributions of the Gini coefficient in different continents")
+ggplotly()
+```
+
+```{r}
+#2B
+s_plot <- ggplot(data = gapminder_2007_gini) +
+          geom_point(aes(gini, lifeExp, colour = continent)) +
+          xlab("GINI index") + ylab("Life Expectancy in 2007")
+          ggtitle("SCATTERPLOT
+showing relationship between the Gini coefficient and life expectancy in 2007, classified by continents")
+ggplotly()
+```
+*From the scatterplot, we can see that there is no clear relationship between the Gini coefficient and life expectancy in 2007, classified by continents. The points are scattered across the plot, with no clear pattern. It appears that other factors, such as economic development and healthcare infrastructure, may have a larger impact on life expectancy.*
+
+
+```{r}
+library(gapminder)
+```
+```{r}
+gapminder <- gapminder
+```
+```{r}
+#Generated a data frame with a new variable called gdp by multiplying the population(pop) size by the gdp per capita(gdpPercap)
+gapminder <- gapminder
+gapminder_modified <- mutate(gapminder, gdp = pop * gdpPercap )
+```
+
+```{r}
+gdp_us_2007 <- filter(gapminder_modified, year == 2007 & country == "United States")
+# gdp of the United States in 2007
+us_gdp_2007 <- gdp_us_2007$gdpPercap * gdp_us_2007$pop
+us_gdp_2007
+```
+```{r}
+#New variable called gdp_ratio equal to the gdp divided by the gdp of the United States in 2007.
+gapminder_modified_final <- mutate(gapminder_modified, gdp_ratio = gdp/us_gdp_2007 )
+```
+
+```{r}
+#Find the median gdp_ratio by continent and year, and then plot the median gdp_ratio over time, distinguishing the continents. Please use both points and lines for the plot.
+gdp_median_ratio <- gapminder_modified_final %>% group_by(continent, year) %>% summarise(median =median(gdp_ratio))
+gdp_median_ratio
+```
+
+
+```{r}
+#Find the median gdp_ratio by continent and year, and then plot the median gdp_ratio over time, distinguishing the continents. Please use both points and lines for the plot.
+gdp_ratio_plot <- ggplot(gdp_median_ratio, aes(year, median, colour = continent, group = continent)) +
+                  geom_line() +
+                  geom_point()  
+                  
+                  
+ggplotly()
+```
+
+
+
+
