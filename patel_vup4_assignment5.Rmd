@@ -1,0 +1,240 @@
+---
+title: "DATAWRANGLING_5"
+author: "Vishwa"
+date: "2023-02-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+
+```{r }
+# Load required libraries
+library(Lahman)
+library(tidyverse)
+library(gapminder)
+library(dplyr)
+library(broom)
+library(ggplot2)
+library(plotly)
+```
+
+```{r}
+head(People)
+```
+# PROBLEM 1
+
+(1) Use the People data frame in the Lahman package to create a tibble with exactly the same variables as the babynames data frame (except the sex), and ordered in the same way. For year, use the year of birth. For name, use the first name (variable nameFirst). The final table should look like this (where prop 
+is the proportion of names in a specific birthyear)
+
+```{r}
+df <- select(People, birthYear, nameFirst)
+
+df <- df %>%
+  group_by(birthYear, nameFirst) %>%
+  summarize(n = n()) %>%
+  ungroup()
+
+df <- df %>%
+  group_by(birthYear) %>%
+  mutate(prop = n / sum(n))
+
+# Arrange the final tibble by birthYear and descending order of n
+final_tibble <- df %>%
+  select(birthYear, nameFirst, n, prop) %>%
+  arrange(birthYear, desc(n))
+
+# Output the final tibble
+final_tibble
+```
+(2) Create a subset of the tibble created in (1) with first names that start with the letter “Y”.
+```{r}
+# Create a subset of the tibble with first names that start with the letter "Y"
+subset_y <- final_tibble %>%
+  filter(str_starts(nameFirst, "Y"))
+
+subset_y
+```
+(3) Create a subset of the tibble created in (1) with first names that contain at least three vowels.
+
+```{r}
+# Create a subset of the tibble with first names that contain at least three vowels
+subset_vowels <- final_tibble %>%
+  filter(str_count(nameFirst, "[aeiou]") >= 3)
+
+subset_vowels
+```
+
+(4) Create a data frame of players showing just the playerID, first name, last name, given name, and career total (meaning, summed over all the years and all stints) of games (that is, the G variable) according to the Fielding data frame. [Hint: Join the Fielding data frame with the People data frame]
+
+```{r}
+# Join Fielding and People data frames
+player_totals <- Fielding %>%
+  inner_join(People, by = "playerID") %>%
+  
+  # Select relevant variables
+  select(playerID, nameFirst, nameLast, nameGiven, G) %>%
+  
+  # Group by playerID and nameFirst and nameLast
+  group_by(playerID, nameFirst, nameLast, nameGiven) %>%
+  
+  # Summarize career total of games
+  summarise(G_career = sum(G), .groups = "drop") %>%
+  
+  # Reorder columns
+  select(playerID, nameFirst, nameLast, nameGiven, G_career)
+
+head(player_totals)
+
+```
+
+(5) Add a variable to your data frame obtained in (4) for full name by combining the first name and last
+name with a space between them.
+```{r}
+# add a new variable 'fullName' by combining first name and last name with a space
+player_totals$fullName <- paste(player_totals$nameFirst, player_totals$nameLast, sep = " ")
+
+# print first few rows of final data frame
+head(player_totals)
+
+```
+
+
+(6) Use the data frame you have created in part (4) to determine the five most popular first names in
+baseball among players who played at least 500 games.
+
+```{r}
+# Filter players who played at least 500 games
+player_totals_filtered <- player_totals %>%
+  filter(G_career >= 500)
+
+# Group by first name and count the number of players for each name
+top_first_names <- player_totals_filtered %>%
+  group_by(nameFirst) %>%
+  summarise(n_players = n()) %>%
+  arrange(desc(n_players)) %>%
+  head(5)
+
+# View the result
+top_first_names
+
+```
+
+# Problem 2
+
+1.Get the data in a single data frame
+Create 3 data frames (or tibbles) from these files
+Combine the 3 data frames into one.
+```{r}
+
+url1 <- "https://raw.githubusercontent.com/jennybc/lotr-tidy/master/data/The_Fellowship_Of_The_Ring.csv"
+url2 <- "https://raw.githubusercontent.com/jennybc/lotr-tidy/master/data/The_Two_Towers.csv"
+url3 <- "https://raw.githubusercontent.com/jennybc/lotr-tidy/master/data/The_Return_Of_The_King.csv"
+
+# Read the data from URLs
+
+lotr1 <- read.csv(url1) %>% mutate(Film = "The Fellowship Of The Ring")
+lotr2 <- read.csv(url2) %>% mutate(Film = "The Two Towers")
+lotr3 <- read.csv(url3) %>% mutate(Film = "The Return Of The King")
+
+
+# Combine the 3 data frames into one
+
+lotr_combined <- bind_rows(lotr1, lotr2, lotr3)
+
+lotr_combined
+```
+
+2.Tidy the combined data frame by creating new variables “Gender” and “Words”
+
+```{r}
+# Extract gender from the character column
+
+lotr_tidy <- lotr_combined %>%
+  pivot_longer(cols = c("Female", "Male"), names_to = "Gender", values_to = "Words")
+lotr_tidy
+```
+
+
+3. Use the combined data frame to answer the following questions
+
+```{r}
+# 3a. How many words were spoken in each movie?
+words_by_movie <- lotr_tidy %>%
+  group_by(Film) %>%
+  summarise(total_words = sum(Words))
+words_by_movie
+```
+
+
+```{r}
+# 3b. How many words were spoken by each gender in total?
+words_by_gender <- lotr_tidy %>%
+  group_by(Gender) %>%
+  summarise(total_words = sum(Words))
+words_by_gender
+```
+
+
+```{r}
+# 3c. How many words were spoken by each race in total?
+words_by_race <- lotr_tidy %>%
+  group_by(Race) %>%
+  summarise(total_words = sum(Words))
+words_by_race
+```
+
+4. Create a data frame with totals by race and movie, calling it by_race_film.
+
+```{r}
+by_race_film <- lotr_tidy %>%
+  group_by(Race, Film) %>%
+  summarise(total_words = sum(Words),.groups = "drop")
+by_race_film
+```
+
+
+# Problem 3
+
+Split/group the gapminder data by year. For each year, fit a regression of life expectancy on
+log10(gdpPercap), obtain clean outputs on coefficients in broom, and combine the slope
+coefficients them into a single tibble like the following:
+
+```{r}
+# Load the gapminder dataset
+data(gapminder)
+
+# Group by year and fit a regression for each year
+reg_results <- gapminder %>%
+  group_by(year) %>%
+  do(tidy(lm(lifeExp ~ log10(gdpPercap), data = .)))
+
+# Extract the slope coefficients and combine them into a single tibble
+slope_coefs <- reg_results %>%
+  filter(term == "log10(gdpPercap)") %>%
+  select(year, estimate, std.error, statistic, p.value)
+
+# Print the slope coefficients tibble
+slope_coefs
+```
+
+2. Plot the slope coefficients against year from the tibble obtained in part 1.
+```{r}
+# Plot the slope coefficients against year
+plot <- ggplot(slope_coefs, aes(x = year, y = estimate)) +
+  geom_line() +
+  labs(x = "Year", y = "Slope coefficient")
+
+ggplotly()
+```
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

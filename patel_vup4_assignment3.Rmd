@@ -1,0 +1,144 @@
+---
+title: "DATAWRANGLING_3"
+author: "Vishwa"
+date: "2023-02-13"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+library(stringr)
+library(lubridate)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r }
+#(1)
+#Read the heights data set height.txt (made available on CANVAS) into R. [Hint: Use read.fwf('height.txt', widths = c(30))]
+heights <- data.frame(read.fwf("/Users/vishwapatel/Downloads/height.txt",header=TRUE,widths=c(35)))
+
+head(heights,30)
+```
+### a) Consider all height entries of the form 68 or 72 or 72.13 (height in inches) as "normal" height data in inches, extract them from the data frame using appropriate pattern matching methods, and plot, in a single plot, the density of height for men and women. Be careful to exclude numbers like 158 or 170, which represent height in centimeters.
+
+```{r }
+pattern <- "^(\\d{2})(\\.\\d*)?$"
+heights_filter <- heights %>%
+  filter(str_detect(height, pattern) == TRUE)
+
+heights_filter$height<-as.numeric(heights_filter$height)
+head(heights_filter,30)
+```
+
+```{r}
+ggplot(heights_filter, aes(x = height, fill = sex)) + 
+        geom_density()
+```
+
+
+### Clean as many of the "abnormal" height answers as you can; do not replace values with hard-coded numbers (i.e., don't type height[29] <- 62). Do so by creating a new variable for height; don't replace values in the original variable.
+
+```{r}
+abnormal_heights <- heights[!str_detect(heights$height, pattern),]$height
+head(abnormal_heights,10)
+```
+
+```{r}
+# Writting patterns in REGULAR EXPRESSIONS to match different types of abnormal heights
+pattern_1 <- "^(\")?[0-9]('|.|,)\\s?[0-9]+((\"{3})|('{2}))?"
+pattern_2 <- "^[0-9]{3}([a-z]?)"
+pattern_3 <- "^([0-9])\\s*[f].*"
+pattern_4 <- "^[0-9]$"
+```
+
+```{r}
+# Matching with normal height pattern
+heights$normalized_height <- as.double(str_extract(heights$height, pattern))
+
+# Matching with patterns and solving the expression to normalize the height
+# Matching pattern 1 and solving
+heights$normalized_height <- ifelse(str_detect(heights$height,pattern_1),
+                                    as.numeric(str_extract(heights$height,
+                                                           "[0-9](?=(('|\\.|,)(\\s)?))"))*12 +
+                                      as.numeric(str_extract(heights$height,
+                                                             "(?<=(('|.|,)(\\s)?))[0-9](?=(((\"{3})|('{2}))?))")),
+                                    heights$normalized_height)
+# Matching pattern 2 and solving
+lower <- 100
+higher <- 240
+heights$normalized_height <- ifelse(str_detect(heights$height,pattern_2)&
+                                    between(as.numeric(str_extract(heights$height,"[0-9]{3}")),lower,higher),
+                                    as.double(str_extract(heights$height,"[0-9]{3}")) / 2.54,
+                                    heights$normalized_height)
+# 
+# Matching pattern 3 and solving
+heights$normalized_height <- ifelse((str_detect(heights$height,pattern_3)),
+                                    as.numeric(str_extract(heights$height, "^[0-9]")) * 12 +
+                                      as.numeric(str_extract(heights$height, "(?<=\\s)[0-9]")),
+                                    heights$normalized_height)
+# 
+# # Matching pattern 4 and solving
+# heights$normalized_height <- ifelse((str_detect(heights$height,pattern_4)),
+#                                     as.numeric(str_extract(heights$height, "^[0-9]")),
+#                                     heights$normalized_height)
+# 
+# Matching pattern 4 and solving
+heights$normalized_height <- ifelse(str_detect(heights$height,pattern_4)&
+                                      (as.numeric(heights$height) >= 3),
+                                    as.double(heights$height) * 12,
+                                    heights$normalized_height)
+head(heights)
+```
+
+## c/ Provide a table of the number of missing values for the new variable by sex.
+```{r}
+missing_sex <- table(is.na(heights$normalized_height), heights$sex)
+missing_sex
+```
+
+## d/Print all of the original values for height for which your methods could not provide a clean "normal" value.
+```{r}
+abnormal_heights <- heights$height[is.na(heights$normalized_height)]
+abnormal_heights
+```
+
+## e/ Plot, in a single plot, the density of height for men and women.
+```{r}
+ggplot(heights, aes(x = normalized_height, fill = sex)) + 
+geom_density() +
+xlab("Height") +
+ylab ("Density")
+```
+(2) 
+### a) From the heights data, convert the timestamp column into three separate columns indicating the year, month (by name) and day. Now remove the original timestamp column from the data frame/tibble.
+
+```{r}
+time_temp<-ymd_hms(heights$time_stamp)
+
+heights$year <- year(time_temp)
+heights$month <- month.name[month(time_temp)]
+heights$day <- day(time_temp)
+
+heights = select(heights, -time_stamp)
+
+head(heights)
+
+```
+
+```{r}
+### b) Filter the data for the year 2015 and plot the number of entries made by month. In which month were the maximum number of entries made?
+heights_2015<-heights%>%filter(year==2015)
+head(heights_2015)
+```
+
+
+ggplot(heights_2015, aes(x = month, fill = month)) + geom_bar() + xlab("Month")+theme(axis.text.x=element_text(angle=45,hjust=1))+ylab("Number of Entries")
+ggtitle("Number of Entries Made by Month in 2015")
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

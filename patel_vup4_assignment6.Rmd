@@ -1,0 +1,200 @@
+---
+title: "DATAWRANGLING_6"
+author: "Vishwa"
+date: "2023-03-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r }
+#install.packages("tidytext")
+library(gutenbergr)
+library(stringr)
+library(dplyr)
+library(tidytext)
+library(tidyverse)
+library(ggplot2)
+library(plotly)
+```
+```{r}
+gutenberg_metadata <- gutenberg_metadata
+```
+## Q1 Find the gutenberg IDs of Treasure Island and Kidnapped by Robert Louis Stevenson using the gutenberg_metadata data frame available in the gutenberg package.
+```{r}
+treasure_island <- gutenberg_metadata %>% filter(str_detect(gutenberg_metadata$title,"Treasure Island" ) & str_detect(gutenberg_metadata$author, "Stevenson, Robert Louis"))
+
+kidnapped <- gutenberg_metadata %>% filter(str_detect(gutenberg_metadata$title,"Kidnapped" ) & str_detect(gutenberg_metadata$author, "Stevenson, Robert Louis"))
+```
+
+```{r}
+treasure_island_id <- treasure_island$gutenberg_id
+kidnapped_id <- kidnapped$gutenberg_id
+```
+```{r}
+#Gutenberg IDs of Treasure Island and Kidnapped
+cat("Gutenberg IDs of Treasure Island: ", treasure_island_id, "\n")
+cat("Gutenberg IDs of Kidnapped: ", kidnapped_id, "\n")
+```
+
+##Q2 Download the texts of these two books from the gutenberg package.
+
+```{r}
+#Download Treasure Island
+treasure_island_book <- gutenberg_works(title == "Treasure Island", author == "Stevenson, Robert Louis")[1]
+treasure_island_book_text <- gutenberg_download(treasure_island_book$gutenberg_id)
+
+```
+
+```{r}
+#Download Kidnapped
+kidnapped_book <- gutenberg_works(title == "Kidnapped", author == "Stevenson, Robert Louis")[1]
+kidnapped_book_text <- gutenberg_download(kidnapped_book$gutenberg_id)
+```
+
+##Q3 Find the 10 most common words (that are not stop words) in each novel.
+```{r}
+#tokenizing the text
+treasure_island_words <- treasure_island_book_text %>% unnest_tokens(word,text)
+kidnapped_words <- kidnapped_book_text %>% unnest_tokens(word,text)
+```
+```{r}
+#word counts after removing stop words
+treasure_island_filtered_wordcount <- treasure_island_words %>% anti_join(stop_words) %>% count(word,sort=TRUE)
+kidnapped_filtered_wordcount <- kidnapped_words %>% anti_join(stop_words) %>% count(word,sort=TRUE)
+```
+
+```{r}
+#Top 10 words
+top10_treasure_island <- treasure_island_filtered_wordcount %>% head(10)
+top10_kidnapped <- kidnapped_filtered_wordcount %>% head(10)
+
+cat("TOP 10 words in Treasure Island")
+top10_treasure_island$word
+cat("TOP 10 words in Kidnapped")
+top10_kidnapped$word
+```
+
+
+```{r}
+# Combine top100 word counts for both books into a single data frame 
+#(used top 50 only for readability purpose: can do for whole dataframe directly using <book>_filtered_wordcount )
+top100_treasure_island <- treasure_island_filtered_wordcount %>% head(50)
+top100_kidnapped <- kidnapped_filtered_wordcount %>% head(50)
+
+
+word_counts <- bind_rows(
+  mutate(top100_treasure_island, book = "Treasure Island"),
+  mutate(top100_kidnapped, book = "Kidnapped")
+)
+
+# Calculate proportion of each word in each book
+book_word_proportions <- word_counts %>%
+  group_by(book) %>%
+  mutate(total_words = sum(n),
+         proportion = n / total_words) %>%
+  ungroup()
+
+# Create scatterplot of word proportions
+proportion_plot <- ggplot(book_word_proportions, aes(x = proportion, y = reorder(word, -proportion), color = book)) +
+  geom_point() +
+  #scale_x_continuous(labels = scales::percent_format()) +
+  labs(x = "Proportion of Non-Stop Words", y = "Word", color = "Book")
+
+ggplotly()
+```
+
+
+```{r}
+# Cleaning up to retain only words and removing stop words
+frequency <- bind_rows(mutate(treasure_island_words, book = "Treasure Island"),
+mutate(kidnapped_words, book = "Kidnapped")) %>% 
+mutate(word = str_extract(word, "[a-z]+")) %>% anti_join(stop_words)
+
+# Calculate proportion of words used by both authors
+frequency <- frequency %>%
+count(book, word) %>% 
+group_by(book) %>% 
+mutate(proportion = n / sum(n)) %>%
+select(-n)
+```
+```{r}
+# Creating separate author columns for comparison
+frequency <- frequency %>%
+pivot_wider(names_from = "book", values_from = "proportion")
+
+head(frequency,5)
+```
+### Plotting the proportions of words used in the Treasure Island and Kidnapped
+```{r}
+cor_plot<-ggplot(frequency, aes(x = `Treasure Island`, y = `Kidnapped`)) +
+  geom_abline(color = "red", lty = 2, lwd=2) +
+  geom_point(color="blue")+ 
+  geom_text(aes(label = word), check_overlap = TRUE) + 
+  scale_x_log10() + scale_y_log10()
+
+ggplotly()
+```
+
+### Correlation between the words in both novels :
+
+```{r}
+frequency %>%
+filter(!(`Treasure Island`=="NA"|`Kidnapped`=="NA")) %>% 
+  select(,2:3) %>%
+  cor()
+```
+
+
+##Find two words that appear with a high frequency in Kidnapped but not in Treasure Island. 
+
+### Answer : Words "alan","ye" are one of the many that appear with high frequency in Kidnapped but not in Treasure Island.
+
+##Find two words that appear with a high frequency in Treasure Island but not in Kidnapped.  
+
+### Answer : Words "tom","cap" are one of the many that appear with high frequency in Treasure Island but not in Kidnapped.
+
+##Find two words that appear with high frequency in both novels.
+
+### Answer : Words "time","cried" are the ones that appear with high frequency in both novels.
+
+# Q5 : 
+
+## Find the 10 most common bigrams in Treasure Island that do not include stop words.
+
+```{r}
+common_bigrams <- treasure_island_book_text %>%
+  unnest_tokens(bigram, text, token = "ngrams", n = 2) %>% 
+  filter(bigram != "NA")%>% 
+  separate(bigram, c("word1", "word2"), sep = " ") %>% 
+  filter(!word1 %in% stop_words$word) %>% 
+  filter(!word2 %in% stop_words$word) %>% 
+  unite(bigram, word1, word2, sep=" ") %>% 
+  count(bigram, sort = TRUE)%>%head(10)
+
+common_bigrams
+
+```
+
+### The 10 most common bigrams in Treasure Island that do not include stop words are : 
+
+### "dr livesey", "ben gunn", "captain smollett", "spy glass", "black dog", "block house", "admiral benbow", "cried silver", "john silver", "log house" 
+
+
+
+
+
+
+
+
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

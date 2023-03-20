@@ -1,0 +1,176 @@
+---
+title: "DATAWRANGLING4"
+author: "Vishwa"
+date: "2023-02-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r }
+library(plotly)
+library(ggplot2)
+library(gapminder)
+library(purrr)
+library(dplyr)
+```
+
+## 1(a) Write your own functions to compute the mean, median, sample variance and skewness of a numeric vector. You can use functions sum() and any ranking function in R or tidyverse. 
+
+
+
+```{r}
+
+mean_func <- function(x) {
+  sum(x) / length(x)
+}
+
+
+median_func <- function(x) {
+  n <- length(x)
+  x_sorted <- sort(x)
+  if(n %% 2 == 0) {
+    (x_sorted[n/2] + x_sorted[(n/2) + 1]) / 2
+  } else {
+    x_sorted[(n+1)/2]
+  }
+}
+
+
+var_func <- function(x) {
+  n <- length(x)
+  x_mean <- mean_func(x)
+  sum((x - x_mean)^2) / (n - 1)
+}
+
+
+skewness_func <- function(x) {
+  n <- length(x)
+  x_mean <- mean_func(x)
+  x_sd <- sqrt(var_func(x))
+  x_median <- median_func(x)
+  #3(x_mean-x_median) / x_sd
+  sum((x - x_mean)^3) / (n * x_sd^3)
+}
+```
+
+## 1(b) Simulate 1000 observations from (a) a standard normal distribution, (b) a beta distribution with parameters 6 and 2 and (c) a chi-square distribution with degrees of freedom 5. Compute the mean, median, variance and skewness for the three vectors using the function written in a) and present the output as a 3x4 table where rows indicate the distribution and columns the statistic. Obtain density plots of the three distributions and comment on whether the computed values of skewness are consistent with the shapes of the distributions.
+
+```{r}
+# Simulate 1000 observations from the standard normal distribution
+set.seed(123)
+x1 <- rnorm(1000)
+
+# Simulate 1000 observations from the beta distribution with parameters 6 and 2
+x2 <- rbeta(1000, 6, 2)
+
+# Simulate 1000 observations from the chi-square distribution with 5 degrees of freedom
+x3 <- rchisq(1000, 5)
+
+# Compute the mean, median, variance, and skewness for each distribution
+mean_vec <- c(mean_func(x1), mean_func(x2), mean_func(x3))
+median_vec <- c(median_func(x1), median_func(x2), median_func(x3))
+variance_vec <- c(var_func(x1), var_func(x2), var_func(x3))
+skewness_vec <- c(skewness_func(x1), skewness_func(x2), skewness_func(x3))
+
+# Create a table of the results
+results <- data.frame(Distribution = c("Standard Normal", "Beta (6,2)", "Chi-Square (df=5)"),
+                            Mean = round(mean_vec, 3),
+                            Median = round(median_vec, 3),
+                            Variance = round(variance_vec, 3),
+                            Skewness = round(skewness_vec, 3))
+
+print(results)
+
+```
+
+#### The skewness values for the normal and beta distributions are close to 0, as it is symmetric distribution. The skewness value for the chi-squared distribution is positive, which makes sense given its right-skewed shape in the density plot.
+
+```{r}
+par(mfrow = c(1, 3))
+
+#Density plot for standard normal
+plot(density(x1), main = "Standard Normal")
+abline(v = mean_func(x1), col = "red")
+abline(v = median_func(x1), col = "blue", lty = 2)
+
+#Density plot for beta
+plot(density(x2), main = "Beta(6, 2)")
+abline(v = mean_func(x2), col = "red")
+abline(v = median_func(x2), col = "blue", lty = 2)
+
+#Density plot for chi square
+plot(density(x3), main = "Chi-square(5)")
+abline(v = mean_func(x3), col = "red")
+abline(v = median_func(x3), col = "blue", lty = 2)
+
+```
+
+#### The resulting plots show that the skewness values are consistent with the shapes of the distributions. The standard normal distribution has a skewness of approx 0, indicating symmetry, which is reflected in the density plot. The beta distribution has a skewness of -0.46 , indicating a longer left tail, which is also visible in the density plot. The chi-square distribution has a positive skewness of 0.71, indicating a longer right tail and a peak shifted to the left, which is again reflected in the density plot.
+
+
+
+
+## 2.Create a new function that, given an `lm` object, returns the top n residuals arranged in descending order according to their largest absolute values (but returns the residuals, not the absolute value of the residuals), where the default value for n is 5. The function should give a clear error message if n is larger than the number of residuals. Demonstrate that your function works by applying it to mtcars.lm <- lm(mpg ~ disp, data = mtcars) first with no argument for n, then with n = 6, and then with n = 40 (error message expected). 
+
+```{r}
+top_residuals <- function(lm_object, n = 5) {
+  residuals <- lm_object$residuals
+  n_resid <- length(residuals)
+  if (n > n_resid) {
+    stop("n is larger than the number of residuals.")
+  } else {
+    sorted_resid <- residuals[order(abs(residuals), decreasing = TRUE)]
+    return(sorted_resid[1:n])
+  }
+}
+```
+```{r}
+mtcars.lm <- lm(mpg ~ disp, data = mtcars)
+
+# top 5 residuals (default)
+top_residuals(mtcars.lm)
+
+# top 6 residuals
+top_residuals(mtcars.lm, n = 6)
+
+
+#top_residuals(mtcars.lm, n = 40)
+# output : Error in top_residuals(mtcars.lm, n = 40) :
+#           n is larger than the number of residuals.
+```
+
+
+
+## 3.Split the gapminder data by country and use map() to calculate, by country, the R-squared for the linear model lifeExp ~ log10(gdpPercap). Using ggplot2, make a set of boxplots of R-squared by continent. 
+
+```{r}
+rsq_by_country <- gapminder %>% split(.$country) %>% 
+map(~ lm(lifeExp ~ log10(gdpPercap), data = .)) %>% 
+map_dbl(~ summary(.x)$r.squared)%>%
+  tibble(country = names(.), rsq = .)
+```
+
+#### The below code joins the rsq_by_country tibble with a tibble containing the unique country-continent pairs from the gapminder data, and then uses ggplot() to create a boxplot of R-squared by continent.
+
+
+```{r}
+rsq_df <- left_join(rsq_by_country, gapminder %>% select(country, continent), by = "country")
+
+plot <- ggplot(rsq_df, aes(x = continent, y = rsq,fill=continent)) +
+        geom_boxplot() +
+        ylab("R-squared") +
+        ggtitle("R-squared of lifeExp ~ log10(gdpPercap) by continent")
+
+ggplotly()
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
